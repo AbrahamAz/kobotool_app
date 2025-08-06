@@ -34,6 +34,8 @@ if "data_list" not in st.session_state:
     st.session_state.data_list = None
 if "label" not in st.session_state:
     st.session_state.label = None
+if "sep" not in st.session_state:
+    st.session_state.sep = None
 
 # ----- FORM UPLOAD ------
 if not (st.session_state.data_excel and st.session_state.form_excel):
@@ -45,6 +47,9 @@ if not (st.session_state.data_excel and st.session_state.form_excel):
             data = st.file_uploader("Choose your Data File", type="xlsx")
         with col2:
             tool = st.file_uploader("Choose your Form File", type="xlsx")
+            sep = st.selectbox("Choose the select_multiple seperator", 
+                              options=["/",".","__"])
+            st.session_state.sep = sep
 
         submit_tokens = st.form_submit_button("Authenticate")
 
@@ -82,10 +87,21 @@ if st.session_state.form_excel:
 if st.session_state.form_excel:
     tool_survey = st.session_state.tool_survey
     label_colname = [col for col in tool_survey.columns if 'label' in col]
+    if len(label_colname) > 1:
+        label = st.multiselect(
+            "Select the language to switch to",
+            options= label_colname
+        )
+        st.markdown(f"{label}: This was the chosen label for the Switch.")
+        st.session_state.label = label
+    elif len(label_colname) == 1:
+        label = label_colname[0]
+        st.markdown(f"{label}: This was the only identified label in the Data File.")
+        st.session_state.label = label
+    else:
+        st.error("❌ We couldn't find the column containing the different label languages in the Data File.")
+        
 
-    st.markdown(label_colname)
-    
-    # TO ADD A SELECT LANGUAGE IN CASE MANY WAS DETECTED AND IF ONLY ONE RETURN A MESSAGE THAT SAY THIS IS THE LANGUAGE
 
 # ----- FIXING DATA ------
 if st.session_state.data_excel:
@@ -96,14 +112,54 @@ if st.session_state.data_excel:
     st.session_state.data_list = data_list
 
 # ----- SWITCHING DATA -----
-if st.session_state.data_list and st.session_state.tool_survey and st.session_state.tool_choices:
-    # Start with Select One questions
-    tool_s_one = st.session_state.tool_survey
-    tool_s_one = tool_s_one[tool_s_one['q_type'] == "select_one"]
+if st.session_state.data_list and st.session_state.form_excel and st.session_state.label and st.session_state.sep:
 
+    data_list = st.session_state.data_list
+    tool_survey = st.session_state.tool_survey
+    tool_choices = st.session_state.tool_choices
+    label = st.session_state.label
+    sep = st.session_state.sep
+    # Select One questions
+    tool_s_one = tool_survey[tool_survey['q_type'] == "select_one"]
     columns_tool_s_one = tool_s_one['name']
-
+    
     for data in data_list:
-        for i in range(1, len(columns_tool_s_one)):
-            if data[[columns_tool_s_one[i]]] is not None:
-                data[[columns_tool_s_one[i]]] = name2label_choices_one(tool_survey,tool_choices,data,columns_tool_s_one[i],)
+        data_columns = data.columns
+        for i in columns_tool_s_one:
+            if i in data_columns:
+                data[i] = name2label_choices_one(survey=tool_survey,
+                                                 choices=tool_choices,
+                                                 data=data,
+                                                 col=i,
+                                                 label=label)
+                
+    # Select Multiple questions
+    tool_s_multi= tool_survey[tool_survey['q_type'] == "select_multiple"]
+    columns_tool_s_multi = tool_s_multi['name']
+    for data in data_list:
+        data_columns = data.columns
+        for i in columns_tool_s_multi:
+            if i in data_columns:
+                data[i] = name2label_choices_multiple(survey=tool_survey,
+                                                      choices=tool_choices,
+                                                      data=data,
+                                                      col=i,
+                                                      label=label,
+                                                      sep=sep)
+                
+    # Questions themselves
+    for data in data_list:
+        data = data.loc[:, ~data.columns.isna()]
+        data_columns = data.columns
+        new_col_names = [name2label_questions(survey = tool_survey,
+                                              choices= tool_choices,
+                                              col= col,
+                                              label = label) 
+                                              for col in data_columns]
+        data.columns = new_col_names
+
+    st.dataframe(data_list[0])
+
+
+
+    
