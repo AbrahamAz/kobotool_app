@@ -21,7 +21,6 @@ st.markdown("""
             ### 🚀 Coming Soon
             - Bulk Persmissions Manager
             - XLS to Label Switcher
-            - Kobo Media Downloader
             - And many more
 
             ---
