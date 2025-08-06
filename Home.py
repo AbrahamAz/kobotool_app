@@ -20,7 +20,7 @@ st.markdown("""
 
             ### 🚀 Coming Soon
             - Bulk Persmissions Manager
-            - XLS to Label Switcher
+            - XML to Label Switcher
             - And many more
 
             ---
