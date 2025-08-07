@@ -17,11 +17,14 @@ st.markdown("""
             Transfer multiple Kobo assets from one account to another with just a few clicks.
             - ✅ **[XML to Label Switcher](./XML_to_Label_Switcher)**
             Switch XML variable names to Label form (more human-readable)
-
+            - ✅ **[Bulk PII Information Switcher](./Bulk_PII_Info_Switcher)**
+            Switch personal identifiable info of multiple projects.
+            
             ---
 
             ### 🚀 Coming Soon
             - Bulk Persmissions Manager
+            - Bulk PII Information
             - And many more
 
             ---
