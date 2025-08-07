@@ -1,23 +1,32 @@
 import pandas as pd
+
 def name2label_questions(survey: pd.DataFrame, 
                          choices: pd.DataFrame, 
                          col: str, 
-                         label: str) -> str:
+                         label: str,
+                         sep: str) -> str:
     # For each column check if it is a select_multiple
-    if "/" in col:
-        parts = col.split("/")
+    if sep in col:
+        parts = col.split(sep)
         q_name = parts[0]
         c_name = ".".join(parts[1:])
     else:
         q_name = col
         c_name = None
-    
+
     # Find question in survey sheet
     if q_name in survey["name"].values:
         q_row = survey[survey["name"] == q_name].iloc[0]
         q_label = q_row.get(label, q_name)
 
-        if q_label is None or q_row.get('type') == "note":
+        if q_label is None or q_row.get('type') in ["note",
+                                                    "start",
+                                                    "end",
+                                                    "deviceid",
+                                                    "today",
+                                                    "audit",
+                                                    "audit_url",
+                                                    "calculate"]:
             q_label = q_name
         
         if c_name:
@@ -40,7 +49,7 @@ def name2label_questions(survey: pd.DataFrame,
         else:
             c_label = None
 
-        final_label = f"{q_label}/{c_label}" if c_label else q_label
+        final_label = f"{q_label}{sep}{c_label}" if c_label else q_label
 
     else:
         final_label = q_name
@@ -107,4 +116,3 @@ def name2label_choices_multiple(survey: pd.DataFrame,
     merged = d_join.apply(lambda row: ';'.join(filter(None, row.dropna().astype(str))), axis=1)
 
     return merged
-
