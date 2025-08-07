@@ -15,12 +15,13 @@ st.markdown("""
 
             - ✅ **[Bulk Asset Transfer](./Bulk_Asset_Transfer)**  
             Transfer multiple Kobo assets from one account to another with just a few clicks.
+            - ✅ **[XML to Label Switcher](./XML_to_Label_Switcher)**
+            Switch XML variable names to Label form (more human-readable)
 
             ---
 
             ### 🚀 Coming Soon
             - Bulk Persmissions Manager
-            - XLS to Label Switcher
             - And many more
 
             ---
