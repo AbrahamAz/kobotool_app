@@ -80,12 +80,12 @@ if st.session_state.tool_survey is not None:
     label_colname = [col for col in st.session_state.tool_survey.columns if 'label' in col]
 
     if len(label_colname) > 1:
-        label = st.multiselect(
+        label = st.selectbox(
             "🌍 Select label language",
             options= label_colname,
         )
         if label:
-            st.session_state.label = label[0]
+            st.session_state.label = label
             st.success(f"Label column selected: `{label}`")
     elif len(label_colname) == 1:
         label = label_colname[0]
