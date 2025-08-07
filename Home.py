@@ -24,7 +24,6 @@ st.markdown("""
 
             ### 🚀 Coming Soon
             - Bulk Persmissions Manager
-            - Bulk PII Information
             - And many more
 
             ---
