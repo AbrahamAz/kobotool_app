@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import zipfile
 import io
-import openpyxl
 from src.utils import *
 
 
@@ -134,7 +133,7 @@ if st.session_state.switch_triggered:
             # Select One
             for col in tool_s_one['name']:
                 if col in data.columns:
-                    data[col] = name2label_choices_one(tool_survey, tool_choices, data, col, label)
+                    data[col] = name2label_choices_one(tool_survey, tool_choices, label, data, col)
             step += 1
             progress.progress(step / total_steps)
 
