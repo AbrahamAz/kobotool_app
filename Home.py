@@ -1,18 +1,5 @@
 import streamlit as st
 
-st.markdown(
-    """
-    <style>
-    .css-1jc7ptx, .e1ewe7hr3, .viewerBadge_container__1QSob,
-    .styles_viewerBadge__1yB5_, .viewerBadge_link__1S137,
-    .viewerBadge_text__1JaDK {
-        display: none;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 st.set_page_config(page_title="DRC KoboTool Utility App",
                    page_icon="🛠️",
                    layout = "centered")
@@ -30,8 +17,8 @@ st.markdown("""
             Transfer multiple Kobo assets from one account to another with just a few clicks.
             - ✅ **[XML to Label Switcher](./XML_to_Label_Switcher)**
             Switch XML variable names to Label form (more human-readable)
-            - ✅ **[Bulk PII Information Switcher](./Bulk_PII_Info_Switcher)**
-            Switch personal identifiable info of multiple projects.
+            - ✅ **[Project Metadata Switcher](./Project_Metadata_Switcher)**
+            Switch personal identifiable info and sector of multiple projects.
             
             ---
 

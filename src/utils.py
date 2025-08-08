@@ -116,3 +116,28 @@ def name2label_choices_multiple(survey: pd.DataFrame,
     merged = d_join.apply(lambda row: ';'.join(filter(None, row.dropna().astype(str))), axis=1)
 
     return merged
+
+def make_unique_columns(columns):
+    counts = {}
+    new_cols = []
+    for col in columns:
+        if col in counts:
+            counts[col] += 1
+            new_cols.append(f"{col}_{counts[col]}")  # Append _1, _2, ...
+        else:
+            counts[col] = 0
+            new_cols.append(col)
+    return new_cols
+
+
+def q_type(val):
+    if isinstance(val, str) and val.strip():
+        return val.split()[0]
+    return None
+
+def list_name(val):
+    if isinstance(val, str):
+        parts = val.split()
+        if len(parts) > 1:
+            return parts[1]
+    return None
