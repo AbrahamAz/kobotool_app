@@ -6,6 +6,7 @@ import io
 from src.utils import *
 
 
+
 st.set_page_config(page_title="XML to Label Switcher", layout="wide")
 
 st.title("🔁 Switch from XML to Label")
@@ -24,14 +25,18 @@ with st.expander("ℹ️ How it works"):
                 """)
     
 # -------- Session state init --------
-for key in ["data_excel", "form_excel", "tool_survey", "tool_choices", "data_list", "label", "sep", "switch_triggered", "switch_complete"]:
+for key in ["data_excel", "form_excel", "tool_survey", "tool_choices", 
+            "data_list", "label", "sep", "switch_triggered",
+              "switch_complete","files_accepted", "preview_df"]:
     if key not in st.session_state:
         st.session_state[key] = None
-st.session_state.switch_triggered = False
+# st.session_state.switch_triggered = False
+# st.session_state.files_accepted = False
 
 # ----- FORM UPLOAD ------
-if not (st.session_state.data_excel and st.session_state.form_excel):
-    with st.form(key = "upload_form"):
+if ("data_excel" not in st.session_state or st.session_state.data_excel is None) and ("form_excel" not in st.session_state or st.session_state.form_excel is None):
+    auth_box = st.empty()  # placeholder so we can clear the form immediately
+    with auth_box.form(key="upload_form", clear_on_submit=True):
         st.subheader("📁 Upload Data and Form")
 
         col1, col2 = st.columns(2)
@@ -53,21 +58,30 @@ if not (st.session_state.data_excel and st.session_state.form_excel):
             st.session_state.switch_complete = False  # Reset after upload
             # Validate Receiver
             if "survey" in st.session_state.form_excel.sheet_names and "choices" in st.session_state.form_excel.sheet_names:
-
-                st.success(f"✅ Uploaded successfully! Sheets found in Data: {st.session_state.data_excel.sheet_names}")
+                auth_box.empty()
+                st.session_state.files_accepted = True
+                st.rerun()
             else:
                 st.error("❌ Kobo form must include 'survey' and 'choices' sheets.")
         except Exception as e:
             st.error(f"❌ Failed to read Excel files: {e}")
 
-st.session_state.switch_complete = False
+if st.session_state.files_accepted:
+    with st.container(border=True):
+        st.markdown("**✅ Files loaded**")
+        st.write(f"- Data sheets: {', '.join(st.session_state.data_excel.sheet_names)}")
+        st.write(f"- Form sheets: {', '.join(st.session_state.form_excel.sheet_names)}")
+        st.write(f"- Separator: `{st.session_state.sep}`")
+
+# st.session_state.switch_complete = False
+# st.session_state.files_accepted = True
 # ----- FIXING FORM ------
-if st.session_state.form_excel:
+if st.session_state.form_excel and st.session_state.files_accepted:
     # Add new list_name and q_type columns to tool_survey
     tool_survey = st.session_state.form_excel.parse('survey')
     tool_survey = tool_survey[tool_survey['name'].notna()].copy()
-    tool_survey["q_type"] = tool_survey['type'].apply(lambda x: str(x).split()[0] if isinstance(x, str) and x.strip() else None)
-    tool_survey['list_name'] = tool_survey['type'].apply(lambda x: str(x).split()[1] if isinstance(x, str) and len(str(x).split()) > 1 else None)
+    tool_survey["q_type"] = tool_survey['type'].apply(q_type)
+    tool_survey['list_name'] = tool_survey['type'].apply(list_name)
     st.session_state.tool_survey = tool_survey
 
     # Filter all na from list_name in tool_choice
@@ -96,7 +110,7 @@ if st.session_state.tool_survey is not None:
         
 
 # ----- FIXING DATA ------
-if st.session_state.data_excel:
+if st.session_state.data_excel and st.session_state.files_accepted:
     # Read all the data inside a data_list
     data_list = [st.session_state.data_excel.parse(sheet) for sheet in st.session_state.data_excel.sheet_names]
     st.session_state.data_list = data_list
@@ -106,9 +120,11 @@ if st.session_state.label and st.session_state.data_list and st.session_state.to
     if st.button("🔁 Run Switch"):
         st.session_state.switch_triggered = True
         st.session_state.switch_complete = False
+        st.session_state.preview_df = None
+        st.rerun()
 
 # ----- Apply Switch -----
-if st.session_state.switch_triggered:
+if st.session_state.switch_triggered and not st.session_state.switch_complete:
     with st.spinner("Switching column headers and choice values..."):
         data_list = st.session_state.data_list
         tool_survey = st.session_state.tool_survey
@@ -152,12 +168,20 @@ if st.session_state.switch_triggered:
             step += 1
             progress.progress(step / total_steps)
 
-        st.success("✅ Switch complete!")
-        st.dataframe(data_list[0].head())
-        st.session_state.switch_complete = True
         st.session_state.data_list = data_list
+        prewiew = data_list[0].head().copy()
+        prewiew.columns = make_unique_columns(prewiew.columns)
+        st.session_state.preview_df = prewiew
+        st.session_state.switch_complete = True
+        st.session_state.switch_triggered = False
+        
+    st.success("✅ Switch complete!")
 
-if st.session_state.switch_complete:
+if st.session_state.preview_df is not None:
+    st.subheader("👀 Preview (first sheet, first 5 rows)")
+    st.dataframe(st.session_state.preview_df, use_container_width=True)
+
+if st.session_state.switch_complete and st.session_state.data_list:
     st.subheader("📥 Download your switched dataset")
 
     # Download Excel
@@ -192,59 +216,3 @@ if st.session_state.switch_complete:
         file_name="relabeled_data.zip",
         mime="application/zip"
     )
-
-# # ----- SWITCHING DATA -----
-# if st.session_state.data_list and st.session_state.form_excel and st.session_state.label and st.session_state.sep:
-
-#     data_list = st.session_state.data_list
-#     tool_survey = st.session_state.tool_survey
-#     tool_choices = st.session_state.tool_choices
-#     label = st.session_state.label
-#     sep = st.session_state.sep
-#     # Select One questions
-#     tool_s_one = tool_survey[tool_survey['q_type'] == "select_one"]
-#     columns_tool_s_one = tool_s_one['name']
-    
-#     for data in data_list:
-#         data_columns = data.columns
-#         for i in columns_tool_s_one:
-#             if i in data_columns:
-#                 data[i] = name2label_choices_one(survey=tool_survey,
-#                                                  choices=tool_choices,
-#                                                  data=data,
-#                                                  col=i,
-#                                                  label=label)
-                
-#     # Select Multiple questions
-#     tool_s_multi= tool_survey[tool_survey['q_type'] == "select_multiple"]
-#     columns_tool_s_multi = tool_s_multi['name']
-#     for data in data_list:
-#         data_columns = data.columns
-#         for i in columns_tool_s_multi:
-#             if i in data_columns:
-#                 data[i] = name2label_choices_multiple(survey=tool_survey,
-#                                                       choices=tool_choices,
-#                                                       data=data,
-#                                                       col=i,
-#                                                       label=label,
-#                                                       sep=sep)
-                
-#     # Questions themselves
-#     for i in range(len(data_list)):
-#         data = data_list[i]
-#         data = data.loc[:, ~data.columns.isna()]
-
-#         data_columns = data.columns
-#         new_col_names = [name2label_questions(survey = tool_survey,
-#                                               choices= tool_choices,
-#                                               col= col,
-#                                               label = label,
-#                                               sep = sep) 
-#                                               for col in data_columns]
-#         data.columns = new_col_names
-#         data_list[i] = data
-
-
-
-
-    
