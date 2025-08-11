@@ -63,7 +63,11 @@ if st.session_state.owner_username:
                     "UID": a["uid"],
                     "Name": a["name"],
                     "owner_username": a["owner__username"],
-                    "PII": a.get("settings", {}).get("collects_pii", {}).get("value", None)
+                    "PII": (
+                        a.get("settings", {}).get("collects_pii", {}).get("value")
+                        if a.get("settings", {}).get("collects_pii") is not None
+                        else a.get("settings", {}).get("collect_pii")
+                    )
                 }
                 for a in assets_data
             ])
