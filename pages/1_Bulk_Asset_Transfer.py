@@ -90,7 +90,7 @@ if st.session_state.sender_username and st.session_state.receiver_username:
             {"uid": asset["uid"], "name": asset["name"], "owner_username": asset["owner__username"]}
             for asset in assets_data
         ])
-        sender_assets = df_assets[df_assets["owner_username"] == st.session_state.sender_username]
+        sender_assets = df_assets[(df_assets["name"] != "") & (df_assets["owner_username"] == st.session_state.sender_username)]
         if not sender_assets.empty:
             selected_names = st.multiselect(
                 "📦 Select assets to transfer:",
