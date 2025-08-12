@@ -51,7 +51,7 @@ if "owner_username" not in st.session_state or st.session_state.owner_username i
 if st.session_state.owner_username:
     st.subheader("✅ Authenticated Users")
     st.markdown("**👤 Owner Username**")
-    st.info(st.session_state.sender_username)
+    st.info(st.session_state.owner_username)
 
     tabs = st.tabs(["🔒 PII Switcher", "🏷️ Function Switcher"])
 
