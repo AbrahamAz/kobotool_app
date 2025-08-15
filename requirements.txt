@@ -2,3 +2,9 @@ streamlit
 pandas
 numpy
 openpyxl
+databricks
+typing
+
+
+databricks-sql-connector>=4.0.0
+msal>=1.28.0
