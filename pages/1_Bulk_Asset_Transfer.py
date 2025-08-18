@@ -81,20 +81,26 @@ if st.session_state.sender_username and st.session_state.receiver_username:
         st.markdown("**👤 Receiver Username**")
         st.info(st.session_state.receiver_username)
     
+
     # ------ FETCH SENDER'S ASSETS
     headers_sender = {"Authorization": f"Token {st.session_state.sender_token}"}
     asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json", headers=headers_sender)
     if asset_resp.status_code == 200:
         assets_data = asset_resp.json()['results']
         df_assets = pd.DataFrame([
-            {"uid": asset["uid"], "name": asset["name"], "owner_username": asset["owner__username"]}
+            {"uid": asset["uid"], "name": asset["name"], "owner_username": asset["owner__username"], "deployment_status": asset["deployment_status"]}
             for asset in assets_data
         ])
         sender_assets = df_assets[(df_assets["name"] != "") & (df_assets["owner_username"] == st.session_state.sender_username)]
         if not sender_assets.empty:
+            status = st.selectbox(
+                "🏴󠁧󠁢󠁮󠁩󠁲󠁿 Filter by deployment status [deployed/draft/archived]",
+                options=sender_assets["deployment_status"].unique().tolist(),
+                placeholder="deployed"
+            )
             selected_names = st.multiselect(
                 "📦 Select assets to transfer:",
-                options=sender_assets["name"].tolist()
+                options=sender_assets[sender_assets["deployment_status"]== status]["name"].tolist()
             )
             selected_uids = sender_assets[sender_assets["name"].isin(selected_names)]["uid"].tolist()
             if selected_uids:
