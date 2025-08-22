@@ -19,6 +19,8 @@ st.markdown("""
             Switch XML variable names to Label form (more human-readable)
             - ✅ **[Project Metadata Switcher](./Project_Metadata_Switcher)**
             Switch personal identifiable info and sector of multiple projects.
+            - ✅ **[Project Overview Dashboard](./Project_Overview)**
+            Provides an overview of all projects owned by a Kobo user.
             
             ---
 
