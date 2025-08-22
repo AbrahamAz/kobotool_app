@@ -2,6 +2,8 @@ import streamlit as st
 import requests
 import pandas as pd
 import json
+import re
+from pandas import json_normalize
 
 CONFIG = {
     "API_ROOT": "https://kobo.drc.ngo/api/v2"
@@ -50,27 +52,107 @@ if st.session_state.owner_username:
     st.markdown("**👤 Owner Username**")
     st.info(st.session_state.owner_username)
 
-    asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json", headers=st.session_state.header_owner)
-    if asset_resp.status_code == 200:
-        assets = asset_resp.json()['results']
-        owned_assets = [a for a in assets if (a["owner__username"] == st.session_state.owner_username) & (a['name'] != "")]
+    assets_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json", headers=st.session_state.header_owner)
+    if assets_resp.status_code == 200:
+        assets = assets_resp.json()['results']
+        owned_assets = [a for a in assets if (a["owner__username"] == st.session_state.owner_username) & (a['name'] != "") & (a['deployment_status'] == "deployed")]
 
         if not owned_assets:
             st.warning("No owned assets found.")
         else:
             st.markdown(f"### 🗂️ You own {len(owned_assets)} projects.")
-            asset_names = [f"{a['name']} ({a['uid']})" for a in owned_assets]
-            asset_lookup = {f"{a['name']} ({a['uid']})": a for a in owned_assets}
+            assets_names = [f"{a['name']} ({a['uid']})" for a in owned_assets]
+            assets_lookup = {f"{a['name']} ({a['uid']})": a for a in owned_assets}
 
             selected_asset_display = st.selectbox("Select a project to inspect",
-                                                  options = asset_names)
+                                                  options = assets_names)
             
-            selected_asset = asset_lookup[selected_asset_display]
+            selected_asset = assets_lookup[selected_asset_display]
 
-            uid = selected_asset['uid']
-            deployed = selected_asset.get('deployment__active', False)
-            deployed_date = selected_asset.get('date_deployed', None)
-            last_submissions = selected_asset.get('deployment__last_submission_time', None)
-            form_name = selected_asset['name']
-            form_url = selected_asset['url']
-            asset_created = selected_asset['date_created']
+            asset_uid = selected_asset['uid']
+
+            asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/{asset_uid}/?format=json", headers=st.session_state.header_owner)
+            if asset_resp.status_code == 200:
+                asset = asset_resp.json()
+
+                sector = asset["settings"]["sector"]["label"]
+                pii = asset["settings"]["collects_pii"]["label"]
+                date_created = asset["date_created"]
+                date_deployed = asset["date_deployed"]
+                date_modified = asset["date_modified"]
+                countries = asset.get("settings",[]).get("country",[])
+
+                if countries:
+                    df_country = pd.DataFrame([
+                        {
+                            "Country Label": c["label"],
+                            "Country Code": c["value"]
+                        } for c in countries
+                    ])
+                
+                # ---- INFOGRTAPHIC CUBES
+                col1, col2, col3 = st.columns(3)
+                col4, col5, col6 = st.columns(3)
+                with st.expander("ℹ️ Metadata"):
+                    # with col1:
+                    st.metric("📅 Date Created", date_created[:10])
+                    st.metric("📅 Date Deployed", date_deployed[:10])
+                    st.metric("📅 Date Created", date_modified[:10])
+                    st.metric("🔐 Collection of PII", pii)
+                    st.metric("📛 Sector Name", sector)
+                    st.metric(" Country Name", "; ".join(df_country['Country Label']))
+                
+                versions = asset.get("deployed_versions", None).get("results", [])
+
+                if versions:
+                    df_versions = pd.DataFrame([
+                        {
+                            "Version ID": v["uid"],
+                            "Date Deployed": v["date_deployed"][:10],
+                            "Date Modified": v["date_modified"][:10]
+                        } for v in versions
+                    ])
+                    with st.expander("📦 Versions"):
+                        st.dataframe(df_versions)
+
+                xls_data_download = asset.get("deployment__data_download_links", None).get("xls", None)
+                csv_data_download = asset.get("deployment__data_download_links", None).get("csv", None)
+                if (xls_data_download) and (csv_data_download):
+                    with st.expander("🗄️ Data Download"):
+                            st.link_button("XLSX", xls_data_download)
+                            st.link_button("CSV", csv_data_download)
+                form_link = asset.get("deployment__links", None).get("iframe_url", None)
+                download_form_link = f"{CONFIG['API_ROOT']}/assets/{asset_uid}/?format=xls"
+                if (form_link):
+                    with st.expander("🔗 Form Web Link"):
+                        st.link_button("XLS Form Download",download_form_link)
+                        st.components.v1.iframe(form_link, height = 600)
+
+                submission_count = asset["deployment__submission_count"]
+                date_last_submission = asset["deployment__last_submission_time"][:10]
+                
+                if (submission_count):
+                    with st.expander("⬆️ Submissions"):
+                        st.metric("Number of Submissions", submission_count)
+                        st.metric("Date of Last Submission", date_last_submission)
+
+                permissions = asset["permissions"]
+                if permissions:
+                    df_permissions = pd.DataFrame([
+                        {
+                            "Username": str(re.findall(r"users/([^/?]+)",p["user"])[0]),
+                            "Permission": str(re.findall(r"permissions/([^/?]+)", p["permission"])[0]),
+                            "Label": p["label"],
+
+                        } for p in permissions
+                    ])
+                    with st.expander("🔑 Permissions"):
+                        st.dataframe(df_permissions[df_permissions["Username"] != "AnonymousUser"])
+                
+                data_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/{asset_uid}/data/?format=json", headers=st.session_state.header_owner)
+                if data_resp.status_code == 200:
+                    data = data_resp.json()["results"]
+                    data_df = json_normalize(data)
+
+                    with st.expander("📊 Data"):
+                        st.dataframe(data_df)
