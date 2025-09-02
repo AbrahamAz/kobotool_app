@@ -74,9 +74,14 @@ if st.session_state.owner_username:
             asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/{asset_uid}/?format=json", headers=st.session_state.header_owner)
             if asset_resp.status_code == 200:
                 asset = asset_resp.json()
-
-                sector = asset["settings"]["sector"]["label"]
-                pii = asset["settings"]["collects_pii"]["label"]
+                if asset["settings"]["sector"]["label"] == None:
+                    sector = None
+                else:
+                    sector = asset["settings"]["sector"]["label"]
+                if asset["settings"]["collects_pii"] == None:
+                    pii = None
+                else:
+                    pii = asset["settings"]["collects_pii"]["label"]
                 date_created = asset["date_created"]
                 date_deployed = asset["date_deployed"]
                 date_modified = asset["date_modified"]
