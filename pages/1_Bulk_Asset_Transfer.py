@@ -24,7 +24,7 @@ with st.expander("ℹ️ How it works"):
                 4. Submit the transfer request.
                 5. The transfer is **automatically** accepted on the receiver's side.
 
-                > ⚠️ Note: You will receive email notifications from KoboToolbox about the transger - **you can ignore these**.
+                > ⚠️ Note: You will receive email notifications from KoboToolbox about the transfer - **you can ignore these**.
                 """)
 
 # -------- Session state init --------

@@ -75,25 +75,28 @@ if st.session_state.owner_username:
             if asset_resp.status_code == 200:
                 asset = asset_resp.json()
                 if asset["settings"]["sector"]["label"] == None:
-                    sector = None
+                    sector = "The Sector Metadata is missing. Please fill it."
                 else:
                     sector = asset["settings"]["sector"]["label"]
-                if asset["settings"]["collects_pii"] == None:
-                    pii = None
+                if asset.get("settings", []).get("collects_pii", None) == None:
+                     pii = "The PII Metadata is missing. Please fill it."
+
                 else:
                     pii = asset["settings"]["collects_pii"]["label"]
+
                 date_created = asset["date_created"]
                 date_deployed = asset["date_deployed"]
                 date_modified = asset["date_modified"]
                 countries = asset.get("settings",[]).get("country",[])
-
-                if countries:
+                if countries != []:
                     df_country = pd.DataFrame([
                         {
                             "Country Label": c["label"],
                             "Country Code": c["value"]
                         } for c in countries
                     ])
+                else:
+                    df_country = "The Country Metadata is missing. Please fill it."
                 
                 # ---- INFOGRTAPHIC CUBES
                 col1, col2, col3 = st.columns(3)
@@ -103,9 +106,18 @@ if st.session_state.owner_username:
                     st.metric("📅 Date Created", date_created[:10])
                     st.metric("📅 Date Deployed", date_deployed[:10])
                     st.metric("📅 Date Created", date_modified[:10])
-                    st.metric("🔐 Collection of PII", pii)
-                    st.metric("📛 Sector Name", sector)
-                    st.metric(" Country Name", "; ".join(df_country['Country Label']))
+                    if asset.get("settings", []).get("collects_pii", None) == None:
+                        st.metric("🔐 Collection of PII", pii)
+                    else:
+                        st.metric("🔐 Collection of PII", pii)
+                    if asset["settings"]["sector"]["label"] == None:
+                        st.metric("📛 Sector Name", sector)
+                    else:
+                        st.metric("📛 Sector Name", sector)
+                    if countries != []:
+                        st.metric(" Country Name", "; ".join(df_country['Country Label']))
+                    else:
+                        st.metric(" Country Name", df_country)
                 
                 versions = asset.get("deployed_versions", None).get("results", [])
 
