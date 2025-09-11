@@ -21,6 +21,8 @@ Use the tabs below to switch between **PII** and **Function** switchers.
 for key in ["owner_token", "owner_username", "df_assets_original_pii",
             "df_assets_edited_pii", "changes_pii", "assets_changes_pii",
             "df_assets_original_func", "df_assets_edited_func", "changes_func",
+            "df_assets_original_legalentity", "df_assets_edited_legalentity", 
+            "changes_legalentity", "assets_changes_legalentity", "confirm_apply_legalentity",
             "assets_changes_func", "header_owner", "confirm_apply_pii", "confirm_apply_func"]:
     if key not in st.session_state:
         st.session_state[key] = None
@@ -53,7 +55,7 @@ if st.session_state.owner_username:
     st.markdown("**👤 Owner Username**")
     st.info(st.session_state.owner_username)
 
-    tabs = st.tabs(["🔒 PII Switcher", "🏷️ Function Switcher"])
+    tabs = st.tabs(["🔒 PII Switcher", "🏷️ Function Switcher", "🌍 Legal Entity Switcher"])
 
     # ----------- PII TAB -----------
     with tabs[0]:
@@ -247,3 +249,136 @@ if st.session_state.owner_username:
 
             st.success(f"🎉 Finished! {success_count} out of {total} assets updated.")
             st.session_state.confirm_apply_func = False
+     # ----------- LEGAL ENTITY TAB -----------
+    with tabs[2]:
+        st.subheader("Legal Entity Switcher")
+
+        legalentity_options = [
+            "DKHQ - DKHQ",
+            "INET Implementing Network - INET",
+            "Myanmar - MMR",
+            "Serbia - SRB",
+            "Bosnia and Herzegovina - BIH",
+            "Ukraine - UKR",
+            "Poland - POL",
+            "Kosovo - XKX",
+            "Bangladesh - BGD",
+            "Afghanistan - AFG",
+            "Georgia - GEO",
+            "Italy - ITA",
+            "Greece - GRC",
+            "Mali - MLI",
+            "Niger - NER",
+            "Nigeria - NGA",
+            "Venezuela - VEN",
+            "Mexico - MEX",
+            "Cameroon - CMR",
+            "Chad - TCD",
+            "Burkina Faso - BFA",
+            "Central African Republic - CAF",
+            "Colombia - COL",
+            "Syria - SYR",
+            "Tunisia - TUN",
+            "Yemen - YEM",
+            "Algeria - DZA",
+            "Iraq - IRQ",
+            "Jordan - JOR",
+            "Lebanon - LBN",
+            "Libya - LBY",
+            "Somalia - SOM",
+            "South Sudan - SSD",
+            "Sudan - SDN",
+            "Tanzania - TZA",
+            "Uganda - UGA",
+            "Burundi - BDI",
+            "Djibouti - DJI",
+            "Ethiopia - ETH",
+            "Kenya - KEN",
+            "East Africa & Great Lakes - RO01",
+            "Middle East & North Africa - RO02",
+            "West Africa & Americas - RO03",
+            "Asia & Europe - RO05",
+            "Türkiye - TUR",
+            "Occupied Palestine Territory - OPT",
+            "Democratic Republic of the Congo - COD"
+        ]
+
+        # Fetch assets
+        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json", headers=st.session_state.header_owner)
+        if asset_resp.status_code == 200:
+            assets_data = asset_resp.json()['results']
+            df_assets = pd.DataFrame([
+                {
+                    "UID": a["uid"],
+                    "Name": a["name"],
+                    "owner_username": a["owner__username"],
+                    "Legal Entity": a.get("settings", {}).get("operational_purpose", {}).get("value", None)
+                }
+                for a in assets_data
+            ])
+            df_assets = df_assets[(df_assets["Name"] != "") & (df_assets["owner_username"] == st.session_state.owner_username)]
+            st.session_state.df_assets_original_legalentity = df_assets[["UID", "Name", "Legal Entity"]].copy()
+
+        column_config = {
+            "Legal Entity": st.column_config.SelectboxColumn(
+                "Legal Entity",
+                help="Select the legal entity for this asset",
+                options=legalentity_options,
+                required=True
+            )
+        }
+
+        edited_df = st.data_editor(
+            st.session_state.df_assets_original_legalentity,
+            column_config=column_config,
+            disabled=["UID", "Name"],
+            use_container_width=True,
+            num_rows="fixed",
+            hide_index=True
+        )
+        st.session_state.df_assets_edited_legalentity = edited_df
+
+        # Detect changes
+        changes = edited_df[edited_df["Legal Entity"] != st.session_state.df_assets_original_legalentity["Legal Entity"]]
+        st.session_state.changes_legalentity = changes
+        st.session_state.assets_changes_legalentity = not changes.empty
+
+        st.subheader("🔍 Review Changes")
+        if changes.empty:
+            st.success("✅ No changes detected.")
+        else:
+            st.dataframe(changes)
+            if not st.session_state.get("confirm_apply_legalentity"):
+                if st.button("✅ Confirm and Apply Changes", key="legalentity_confirm"):
+                    st.session_state.confirm_apply_legalentity = True
+
+        # Apply changes
+        if st.session_state.assets_changes_legalentity and st.session_state.confirm_apply_legalentity:
+            total = len(changes)
+            success_count = 0
+            progress_bar = st.progress(0, text="Initializing update...")
+
+            for i, (_, row) in enumerate(changes.iterrows()):
+                payload = {
+                    "settings": {
+                        "operational_purpose": {
+                            "label": row["Legal Entity"],
+                            "value": row["Legal Entity"]
+                        }
+                    }
+                }
+                r = requests.patch(
+                    f"{CONFIG['API_ROOT']}/assets/{row['UID']}/?format=json",
+                    json=payload,
+                    headers=st.session_state.header_owner
+                )
+                if r.status_code == 200:
+                    success_count += 1
+                else:
+                    st.error(f"❌ Failed UID {row['UID']}: {r.status_code}")
+
+                progress_bar.progress((i+1)/total, text=f"{success_count}/{total} updated...")
+                time.sleep(0.05)
+
+            st.success(f"🎉 Finished! {success_count} out of {total} assets updated.")
+            st.session_state.confirm_apply_legalentity = False
