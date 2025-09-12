@@ -179,7 +179,11 @@ if st.session_state.owner_username:
                     "UID": a["uid"],
                     "Name": a["name"],
                     "owner_username": a["owner__username"],
-                    "Function": a.get("settings", {}).get("sector", {}).get("value", None)
+                    "Function": (
+                        a.get("settings", {}).get("sector", {}).get("value", None)
+                        if a.get("settings", {}).get("sector")
+                        else None
+                        )
                 }
                 for a in assets_data
             ])
