@@ -61,7 +61,7 @@ if st.session_state.owner_username:
     with tabs[0]:
         st.subheader("PII Switcher")
         # Fetch assets
-        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json", headers=st.session_state.header_owner)
+        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json&limit=100000", headers=st.session_state.header_owner)
         if asset_resp.status_code == 200:
             assets_data = asset_resp.json()['results']
             df_assets = pd.DataFrame([
@@ -171,7 +171,7 @@ if st.session_state.owner_username:
         ]
 
         # Fetch assets
-        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json", headers=st.session_state.header_owner)
+        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json&limit=100000", headers=st.session_state.header_owner)
         if asset_resp.status_code == 200:
             assets_data = asset_resp.json()['results']
             df_assets = pd.DataFrame([
@@ -304,7 +304,7 @@ if st.session_state.owner_username:
         ]
 
         # Fetch assets
-        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json", headers=st.session_state.header_owner)
+        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json&limit=100000", headers=st.session_state.header_owner)
         if asset_resp.status_code == 200:
             assets_data = asset_resp.json()['results']
             df_assets = pd.DataFrame([
@@ -321,7 +321,7 @@ if st.session_state.owner_username:
                 }
                 for a in assets_data
             ])
-            df_assets = df_assets[(df_assets["Name"] != "") & (df_assets["owner_username"] == st.session_state.owner_username) & ((df_assets["deployment_status"] == "deployed") | (df_assets["deployment_status"] == "archived"))] 
+            df_assets = df_assets[(df_assets["Name"] != "") & (df_assets["owner_username"] == st.session_state.owner_username) & (df_assets["deployment_status"].isin(["deployed","archived"]))]
             st.session_state.df_assets_original_legalentity = df_assets[["UID", "Name", "Legal Entity"]].copy()
 
         column_config = {
