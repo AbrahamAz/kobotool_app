@@ -312,6 +312,7 @@ if st.session_state.owner_username:
                     "UID": a["uid"],
                     "Name": a["name"],
                     "owner_username": a["owner__username"],
+                    "deployment_status": a["deployment_status"],
                     "Legal Entity": (
                             a.get("settings", {}).get("operational_purpose", {}).get("value")
                             if a.get("settings", {}).get("operational_purpose") 
@@ -320,7 +321,7 @@ if st.session_state.owner_username:
                 }
                 for a in assets_data
             ])
-            df_assets = df_assets[(df_assets["Name"] != "") & (df_assets["owner_username"] == st.session_state.owner_username)]
+            df_assets = df_assets[(df_assets["Name"] != "") & (df_assets["owner_username"] == st.session_state.owner_username) & ((df_assets["deployment_status"] == "deployed") | (df_assets["deployment_status"] == "archived"))] 
             st.session_state.df_assets_original_legalentity = df_assets[["UID", "Name", "Legal Entity"]].copy()
 
         column_config = {
