@@ -312,7 +312,11 @@ if st.session_state.owner_username:
                     "UID": a["uid"],
                     "Name": a["name"],
                     "owner_username": a["owner__username"],
-                    "Legal Entity": a.get("settings", {}).get("operational_purpose", {}).get("value", None)
+                    "Legal Entity": (
+                            a.get("settings", {}).get("operational_purpose", {}).get("value")
+                            if a.get("settings", {}).get("operational_purpose") 
+                            else None
+                            )
                 }
                 for a in assets_data
             ])
