@@ -14,7 +14,7 @@ st.title("🔁 Project Metadata Switchers")
 
 st.markdown("""
 Manage **bulk metadata updates** for your Kobo projects.  
-Use the tabs below to switch between **PII** and **Function** switchers.
+Use the tabs below to switch between **PII**, **Function** and **Legal Entity** switchers.
 """)
 
 # --- SESSION STATE INITIALIZATION ---
