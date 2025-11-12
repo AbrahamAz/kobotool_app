@@ -1,11 +1,11 @@
 import streamlit as st
 
-st.set_page_config(page_title="DRC KoboTool Utility App",
+st.set_page_config(page_title="KoboTool Utility App",
                    page_icon="🛠️",
                    layout = "centered")
 
 st.title("🛠️ KoboToolBox Utility Hub")
-st.markdown("Welcome to the **KoboToolbox Utility Hub** for DRC!")
+st.markdown("Welcome to the **KoboToolbox Utility Hub**!")
 
 st.markdown("""
             This internal tool is designed to help streamline your Kobo workflows by providing easy-to-use interfaces for common admin tasks.
@@ -34,4 +34,4 @@ st.markdown("""
             Have ideas or feedback? Get in touch with the Kobo Core Team!
             """)
 
-st.link_button("Send an Email", url="mailto:kobo.server@drc.ngo")
+st.link_button("Send an Email", url="mailto:abraham.azar30@outlook.com")

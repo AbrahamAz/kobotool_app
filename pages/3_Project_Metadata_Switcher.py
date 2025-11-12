@@ -20,7 +20,7 @@ kobo_url = st.sidebar.text_input("Please enter the kobo url", value = "https://k
 st.session_state.kobo_url = kobo_url
 
 CONFIG = {
-    "API_ROOT": "https://kobo.drc.ngo/api/v2"
+    "API_ROOT": f"{st.session_state.kobo_url}/api/v2"
 }
 
 
