@@ -5,9 +5,7 @@ import json
 import re
 from pandas import json_normalize
 
-CONFIG = {
-    "API_ROOT": "https://kobo.drc.ngo/api/v2"
-}
+
 
 st.set_page_config(page_title="Project Overview Dashboard",
                    layout = "wide")
@@ -18,6 +16,16 @@ st.markdown("""
 This dashboard provides an overview of all projects owned by a Kobo user.
 Enter your **Kobo API Token** to get started.
 """)
+
+if "kobo_url" not in st.session_state:
+    st.session_state.kobo_url = None
+
+kobo_url = st.sidebar.text_input("Please enter the kobo url", value = "https://kobo.drc.ngo")
+st.session_state.kobo_url = kobo_url
+
+CONFIG = {
+    "API_ROOT": f"{st.session_state.kobo_url}/api/v2"
+}
 
 for key in ["owner_token", "owner_username","headers_owner"]:
     if key not in st.session_state:

@@ -3,9 +3,7 @@ import requests
 import json
 import pandas as pd
 
-CONFIG = {
-    "API_ROOT": "https://kobo.drc.ngo/api/v2"
-}
+
 
 st.set_page_config(page_title="Bulk Asset Transfer", layout="wide")
 
@@ -16,6 +14,15 @@ st.markdown("""
             You will need to enter the **API tokens** for both the sender and receiver accounts. 
             """)
 
+if "kobo_url" not in st.session_state:
+    st.session_state.kobo_url = None
+
+kobo_url = st.sidebar.text_input("Please enter the kobo url", value = "https://kobo.drc.ngo")
+st.session_state.kobo_url = kobo_url
+
+CONFIG = {
+    "API_ROOT": "https://kobo.drc.ngo/api/v2"
+}
 with st.expander("ℹ️ How it works"):
     st.markdown("""
                 1. Enter the API Token of the **sender** and **receiver** users.

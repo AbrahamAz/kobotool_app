@@ -4,9 +4,6 @@ import pandas as pd
 import requests
 import time
 
-CONFIG = {
-    "API_ROOT": "https://kobo.drc.ngo/api/v2"
-}
 
 st.set_page_config(page_title="Metadata Switchers", layout="wide")
 
@@ -16,6 +13,16 @@ st.markdown("""
 Manage **bulk metadata updates** for your Kobo projects.  
 Use the tabs below to switch between **PII**, **Function** and **Legal Entity** switchers.
 """)
+if "kobo_url" not in st.session_state:
+    st.session_state.kobo_url = None
+
+kobo_url = st.sidebar.text_input("Please enter the kobo url", value = "https://kobo.drc.ngo")
+st.session_state.kobo_url = kobo_url
+
+CONFIG = {
+    "API_ROOT": "https://kobo.drc.ngo/api/v2"
+}
+
 
 # --- SESSION STATE INITIALIZATION ---
 for key in ["owner_token", "owner_username", "df_assets_original_pii",
