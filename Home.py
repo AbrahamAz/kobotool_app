@@ -31,7 +31,31 @@ st.markdown("""
             ---
 
             ### 📬 Feedback?
-            Have ideas or feedback? Get in touch with the Kobo Core Team!
+            Have ideas or feedback? Get in touch!
             """)
 
 st.link_button("Send an Email", url="mailto:abraham.azar30@outlook.com")
+# Footer
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #f5f5f5;
+        color: #555;
+        text-align: center;
+        justify-contents: center;
+        padding: 10px;
+        font-size: 14px;
+        border-top: 1px solid #ddd;
+    }
+    </style>
+    <div class="footer">
+        Made with ❤️ using Streamlit | © 2025 - Abraham Azar
+    </div>
+    """,
+    unsafe_allow_html=True
+)
