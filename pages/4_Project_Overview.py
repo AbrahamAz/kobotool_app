@@ -181,3 +181,28 @@ if st.session_state.owner_username:
 
                     with st.expander("📊 Data"):
                         st.dataframe(data_df)
+
+# Footer
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #f5f5f5;
+        color: #555;
+        text-align: center;
+        justify-contents: center;
+        padding: 10px;
+        font-size: 14px;
+        border-top: 1px solid #ddd;
+    }
+    </style>
+    <div class="footer">
+        Made with ❤️ using Streamlit | © 2025 - Abraham Azar
+    </div>
+    """,
+    unsafe_allow_html=True
+)

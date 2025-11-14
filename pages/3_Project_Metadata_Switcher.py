@@ -262,7 +262,7 @@ if st.session_state.owner_username:
             st.session_state.confirm_apply_func = False
      # ----------- LEGAL ENTITY TAB -----------
     with tabs[2]:
-        st.subheader("Legal Entity Switcher")
+        st.subheader("Legal Entity Switcher - Specific for kobo.drc.ngo")
 
         legalentity_options = [
             "DKHQ - DKHQ",
@@ -398,3 +398,28 @@ if st.session_state.owner_username:
 
             st.success(f"🎉 Finished! {success_count} out of {total} assets updated.")
             st.session_state.confirm_apply_legalentity = False
+
+# Footer
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #f5f5f5;
+        color: #555;
+        text-align: center;
+        justify-contents: center;
+        padding: 10px;
+        font-size: 14px;
+        border-top: 1px solid #ddd;
+    }
+    </style>
+    <div class="footer">
+        Made with ❤️ using Streamlit | © 2025 - Abraham Azar
+    </div>
+    """,
+    unsafe_allow_html=True
+)

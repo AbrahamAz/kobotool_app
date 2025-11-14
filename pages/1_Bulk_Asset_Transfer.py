@@ -21,7 +21,7 @@ kobo_url = st.sidebar.text_input("Please enter the kobo url", value = "https://k
 st.session_state.kobo_url = kobo_url
 
 CONFIG = {
-    "API_ROOT": "https://kobo.drc.ngo/api/v2"
+    "API_ROOT": f"{st.session_state.kobo_url}/api/v2"
 }
 with st.expander("ℹ️ How it works"):
     st.markdown("""
@@ -201,76 +201,27 @@ if st.session_state.sender_username and st.session_state.receiver_username:
     else:
         st.warning("⚠️ No assets found for this user.")
 
-    # # ------ FETCH SENDER'S ASSETS
-    # headers_sender = {"Authorization": f"Token {st.session_state.sender_token}"}
-    # resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json&limit=1000", headers=headers_sender)
-    # if resp.status_code == 200:
-    #     assets_count = resp.json()["count"]
-    
-    #     frames = []
-    #     for offset in range(0, assets_count, 100):
-    #         asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json&limit=100&offset={offset}",
-    #                                   headers=headers_sender)
-            
-    #         if asset_resp.status_code == 200:
-    #             assets_data = asset_resp.json()['results']
-    #             df_pages = pd.DataFrame([
-    #                 {"uid": asset["uid"], "name": asset["name"], "owner_username": asset["owner__username"], "deployment_status": asset["deployment_status"]}
-    #                 for asset in assets_data
-    #             ])
-    #             frames.append(df_pages)
-    #     df_assets =  pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(
-    #         columns=["uid", "name", "owner_username", "deployment_status"]
-    #         )
-    #     sender_assets = df_assets[(df_assets["name"] != "") & (df_assets["owner_username"] == st.session_state.sender_username)]
-    #     st.session_state.sender_assets = sender_assets
-    #     if not st.session_state.sender_assets.empty:
-    #         status = st.selectbox(
-    #             "🏴󠁧󠁢󠁮󠁩󠁲󠁿 Filter by deployment status [deployed/draft/archived]",
-    #             options=st.session_state.sender_assets["deployment_status"].unique().tolist(),
-    #             placeholder="deployed"
-    #         )
-    #         selected_names = st.multiselect(
-    #             "📦 Select assets to transfer:",
-    #             options=st.session_state.sender_assets[st.session_state.sender_assets["deployment_status"]== status]["name"].tolist()
-    #         )
-    #         selected_uids = st.session_state.sender_assets[st.session_state.sender_assets["name"].isin(selected_names)]["uid"].tolist()
-    #         if selected_uids:
-    #             if st.button("🚀 Transfer Selected Assets"):
-    #                 # Prepare payload
-    #                 recipient_url = f"{CONFIG['API_ROOT']}/users/{st.session_state.receiver_username}/"
-    #                 payload = {
-    #                     "recipient": recipient_url,
-    #                     "assets": selected_uids
-    #                 }
-    #                 transfer_request = requests.post(
-    #                     f"{CONFIG['API_ROOT']}/project-ownership/invites/?format=json",
-    #                     headers=headers_sender,
-    #                     json=payload
-    #                 )
-    #                 if transfer_request.status_code == 201:
-    #                     st.success("✅ Ownership transfer initiated. Awaiting receiver's auto-acceptance...")
-    #                     # Auto-accept with receiver
-    #                     invite_url = transfer_request.json()['url']
-    #                     patch_payload = {"status":"accepted"}
-    #                     headers_receiver = {"Authorization": f"Token {st.session_state.receiver_token}"}
-    #                     patch_resp = requests.patch(
-    #                         invite_url,
-    #                         headers=headers_receiver,
-    #                         json=patch_payload
-    #                     )
-    #                     if patch_resp.status_code == 200:
-    #                         st.success("🎉 Ownership transfer completed successfully!")
-    #                         st.info("Note: You may receive confirmation emails from KoboToolbox. You can safely ignore them.")
-    #                     else:
-    #                         st.error("⚠️ Auto-accept failed.")
-    #                         st.error(f"{patch_resp.status_code} - {patch_resp.reason}")
-    #                 else:
-    #                     st.error("❌ Transfer request failed.")
-    #                     st.error(f"{transfer_request.status_code} - {transfer_request.reason}")
-    #         else:
-    #             st.warning("⚠️ Please select at least one asset to transfer.")
-    #     else:
-    #         st.warning("⚠️ No assets found for this user.")
-    # else:
-    #     st.error("❌ Failed to fetch sender's assets.")
+# Footer
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #f5f5f5;
+        color: #555;
+        text-align: center;
+        justify-contents: center;
+        padding: 10px;
+        font-size: 14px;
+        border-top: 1px solid #ddd;
+    }
+    </style>
+    <div class="footer">
+        Made with ❤️ using Streamlit | © 2025 - Abraham Azar
+    </div>
+    """,
+    unsafe_allow_html=True
+)
