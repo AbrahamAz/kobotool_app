@@ -21,6 +21,10 @@ st.markdown("""
             Switch personal identifiable info, sector/function and legal entity of multiple projects.
             - ✅ **[Project Overview Dashboard](./Project_Overview)**
             Provides an overview of all projects owned by a Kobo user.
+            - ✅ **[Bulk Archiving Tool](./Bulk_Asrchiving_Tool)**  
+            Archive multiple Kobo assets in bulk.
+            - ✅ **[CodeBook Generator](./CodeBook_Generator)**
+            Generate a coded book version of a tool with extra details for cleaning and analysis.
             
             ---
 
