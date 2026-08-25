@@ -10,9 +10,31 @@ st.set_page_config(page_title="Metadata Switchers", layout="wide")
 st.title("🔁 Project Metadata Switchers")
 
 st.markdown("""
-Manage **bulk metadata updates** for your Kobo projects.  
-Use the tabs below to switch between **PII**, **Function** and **Legal Entity** switchers.
+Manage **bulk metadata updates** for your Kobo projects.
+Use the tabs below to switch between **PII**, **Function**, **Legal Entity** and **Donor** switchers.
 """)
+
+DONOR_OPTIONS = [
+    {"name": "echo", "label": "ECHO"},
+    {"name": "danida", "label": "DANIDA"},
+    {"name": "ec_development", "label": "EC Development"},
+    {"name": "fcdo", "label": "FCDO"},
+    {"name": "unhcr", "label": "UNHCR"},
+    {"name": "ocha_cbpfs", "label": "OCHA CBPFs"},
+    {"name": "prm", "label": "PRM"},
+    {"name": "wra", "label": "WRA"},
+    {"name": "afd", "label": "AFD"},
+    {"name": "cdcs", "label": "CDCS"},
+    {"name": "sdc", "label": "SDC"},
+    {"name": "sida", "label": "Sida"},
+    {"name": "bmz", "label": "BMZ"},
+    {"name": "gffo", "label": "GFFO"},
+    {"name": "giz", "label": "GIZ"},
+    {"name": "kfw", "label": "KfW"},
+    {"name": "dmfa", "label": "Danish Ministry of Foreign Affairs"},
+    {"name": "other", "label": "Other"},
+]
+DONOR_LABEL_BY_NAME = {d["name"]: d["label"] for d in DONOR_OPTIONS}
 if "kobo_url" not in st.session_state:
     st.session_state.kobo_url = None
 
@@ -28,9 +50,11 @@ CONFIG = {
 for key in ["owner_token", "owner_username", "df_assets_original_pii",
             "df_assets_edited_pii", "changes_pii", "assets_changes_pii",
             "df_assets_original_func", "df_assets_edited_func", "changes_func",
-            "df_assets_original_legalentity", "df_assets_edited_legalentity", 
+            "df_assets_original_legalentity", "df_assets_edited_legalentity",
             "changes_legalentity", "assets_changes_legalentity", "confirm_apply_legalentity",
-            "assets_changes_func", "header_owner", "confirm_apply_pii", "confirm_apply_func"]:
+            "assets_changes_func", "header_owner", "confirm_apply_pii", "confirm_apply_func",
+            "df_assets_original_donor", "df_assets_edited_donor", "changes_donor",
+            "assets_changes_donor", "confirm_apply_donor", "donor_extra_metadata_by_uid"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
@@ -62,7 +86,7 @@ if st.session_state.owner_username:
     st.markdown("**👤 Owner Username**")
     st.info(st.session_state.owner_username)
 
-    tabs = st.tabs(["🔒 PII Switcher", "🏷️ Function Switcher", "🌍 Legal Entity Switcher"])
+    tabs = st.tabs(["🔒 PII Switcher", "🏷️ Function Switcher", "🌍 Legal Entity Switcher", "💰 Donor Switcher"])
 
     # ----------- PII TAB -----------
     with tabs[0]:
@@ -398,6 +422,106 @@ if st.session_state.owner_username:
 
             st.success(f"🎉 Finished! {success_count} out of {total} assets updated.")
             st.session_state.confirm_apply_legalentity = False
+
+    # ----------- DONOR TAB -----------
+    with tabs[3]:
+        st.subheader("Donor Switcher")
+
+        donor_labels = [d["label"] for d in DONOR_OPTIONS]
+        donor_name_by_label = {d["label"]: d["name"] for d in DONOR_OPTIONS}
+
+        # Fetch assets
+        asset_resp = requests.get(f"{CONFIG['API_ROOT']}/assets/?format=json&limit=100000", headers=st.session_state.header_owner)
+        if asset_resp.status_code == 200:
+            assets_data = asset_resp.json()['results']
+
+            extra_metadata_by_uid = {}
+            rows = []
+            for a in assets_data:
+                extra_metadata = a.get("settings", {}).get("extra_metadata") or {}
+                extra_metadata_by_uid[a["uid"]] = extra_metadata
+                donor_names = set(extra_metadata.get("project_donors") or [])
+                row = {"UID": a["uid"], "Name": a["name"], "owner_username": a["owner__username"]}
+                for d in DONOR_OPTIONS:
+                    row[d["label"]] = d["name"] in donor_names
+                rows.append(row)
+
+            st.session_state.donor_extra_metadata_by_uid = extra_metadata_by_uid
+            df_assets = pd.DataFrame(rows)
+            df_assets = df_assets[(df_assets["Name"] != "") & (df_assets["owner_username"] == st.session_state.owner_username)]
+            st.session_state.df_assets_original_donor = df_assets[["UID", "Name"] + donor_labels].copy()
+
+        column_config = {
+            label: st.column_config.CheckboxColumn(label, default=False)
+            for label in donor_labels
+        }
+
+        edited_df = st.data_editor(
+            st.session_state.df_assets_original_donor,
+            column_config=column_config,
+            disabled=["UID", "Name"],
+            use_container_width=True,
+            num_rows="fixed",
+            hide_index=True,
+            key="donor_editor"
+        )
+        st.session_state.df_assets_edited_donor = edited_df
+
+        # Detect changes (any donor checkbox differs from the original for that row)
+        original_df = st.session_state.df_assets_original_donor
+        changed_mask = (edited_df[donor_labels] != original_df[donor_labels]).any(axis=1)
+        changes = edited_df[changed_mask].copy()
+
+        def _selected_labels(row):
+            return ", ".join(l for l in donor_labels if row[l]) or "(none)"
+
+        changes["Previous Donors"] = original_df.loc[changes.index].apply(_selected_labels, axis=1)
+        changes["New Donors"] = changes.apply(_selected_labels, axis=1)
+
+        st.session_state.changes_donor = changes
+        st.session_state.assets_changes_donor = not changes.empty
+
+        st.subheader("🔍 Review Changes")
+        if changes.empty:
+            st.success("✅ No changes detected.")
+        else:
+            st.dataframe(changes[["UID", "Name", "Previous Donors", "New Donors"]])
+            if not st.session_state.get("confirm_apply_donor"):
+                if st.button("✅ Confirm and Apply Changes", key="donor_confirm"):
+                    st.session_state.confirm_apply_donor = True
+
+        # Apply changes
+        if st.session_state.assets_changes_donor and st.session_state.confirm_apply_donor:
+            total = len(changes)
+            success_count = 0
+            progress_bar = st.progress(0, text="Initializing update...")
+
+            for i, (_, row) in enumerate(changes.iterrows()):
+                donor_names = [donor_name_by_label[l] for l in donor_labels if row[l]]
+
+                updated_extra_metadata = dict(st.session_state.donor_extra_metadata_by_uid.get(row["UID"], {}))
+                updated_extra_metadata["project_donors"] = donor_names
+
+                payload = {
+                    "settings": {
+                        "extra_metadata": updated_extra_metadata
+                    }
+                }
+                r = requests.patch(
+                    f"{CONFIG['API_ROOT']}/assets/{row['UID']}/?format=json",
+                    json=payload,
+                    headers=st.session_state.header_owner
+                )
+                if r.status_code == 200:
+                    success_count += 1
+                else:
+                    st.error(f"❌ Failed UID {row['UID']}: {r.status_code}")
+
+                progress_bar.progress((i+1)/total, text=f"{success_count}/{total} updated...")
+                time.sleep(0.05)
+
+            st.success(f"🎉 Finished! {success_count} out of {total} assets updated.")
+            st.session_state.confirm_apply_donor = False
 
 # Footer
 st.markdown(
