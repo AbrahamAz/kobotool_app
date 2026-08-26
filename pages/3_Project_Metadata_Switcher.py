@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import requests
 import time
+import json
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, JsCode
 
 
 st.set_page_config(page_title="Metadata Switchers", layout="wide")
@@ -35,6 +37,22 @@ DONOR_OPTIONS = [
     {"name": "bha", "label": "BHA"},
     {"name": "dutch_mfa", "label": "Dutch Ministry of Foreign Affairs"},
     {"name": "pool_funds", "label": "Pool Funds"},
+    {"name": "augustinus_fonden", "label": "Augustinus Fonden"},
+    {"name": "euic", "label": "EUIC"},
+    {"name": "finm", "label": "FINM"},
+    {"name": "frem", "label": "FREM"},
+    {"name": "hgbf", "label": "HGBF"},
+    {"name": "hoffmans_and_husmans", "label": "Hoffmans And Husmans"},
+    {"name": "mofa", "label": "MOFA"},
+    {"name": "norad", "label": "NORAD"},
+    {"name": "novo_nordisk", "label": "Novo Nordisk"},
+    {"name": "okf", "label": "OKF"},
+    {"name": "pfru", "label": "PFRU"},
+    {"name": "pmra", "label": "PMRA"},
+    {"name": "pspu", "label": "PSPU"},
+    {"name": "sdcs", "label": "SDCS"},
+    {"name": "unhc", "label": "UNHC"},
+    {"name": "villum_fundation", "label": "Villum Fundation"},
     {"name": "other", "label": "Other"},
 ]
 DONOR_LABEL_BY_NAME = {d["name"]: d["label"] for d in DONOR_OPTIONS}
@@ -71,17 +89,38 @@ if "owner_username" not in st.session_state or st.session_state.owner_username i
 
         if submit_tokens:
             headers_owner = {"Authorization": f"Token {owner_token}"}
-            resp = requests.get(f"{CONFIG['API_ROOT']}/access-logs/me/?format=json&limit=1", headers=headers_owner)
-
-            if resp.status_code == 200:
-                st.session_state.owner_token = owner_token
-                st.session_state.owner_username = resp.json()['results'][0]['username']
-                st.session_state.header_owner = headers_owner  # keep this exact key name consistent everywhere
-                # instantly remove the form and rerun so the tabs show up right away
-                auth_box.empty()
-                st.rerun()
+            try:
+                # "/me/" is Kobo's lightweight "who am I" endpoint — a single-row
+                # profile lookup. Deliberately NOT using "/api/v2/access-logs/me/"
+                # here: that endpoint scans the account's full access-log history,
+                # which is slow for busy accounts and was observed returning a
+                # straight-up 502 Bad Gateway (the backend erroring out, not just
+                # being slow) rather than a clean response.
+                resp = requests.get(
+                    f"{st.session_state.kobo_url}/me/?format=json",
+                    headers=headers_owner,
+                    timeout=30
+                )
+            except requests.exceptions.Timeout:
+                st.error("⏱️ The token check timed out after 30s. Try again — this may be a transient server-side issue.")
+            except requests.exceptions.RequestException as e:
+                st.error(f"❌ Could not reach the Kobo server: {e}")
             else:
-                st.error("❌ Invalid token. Please try again.")
+                if resp.status_code == 200:
+                    username = resp.json().get("username")
+                    if username:
+                        st.session_state.owner_token = owner_token
+                        st.session_state.owner_username = username
+                        st.session_state.header_owner = headers_owner  # keep this exact key name consistent everywhere
+                        # instantly remove the form and rerun so the tabs show up right away
+                        auth_box.empty()
+                        st.rerun()
+                    else:
+                        st.error(f"⚠️ Token is valid, but the response had no username: {resp.text[:500]}")
+                elif resp.status_code == 401:
+                    st.error("❌ Invalid token. Please try again.")
+                else:
+                    st.error(f"❌ Authentication failed (HTTP {resp.status_code}): {resp.text[:500]}")
 
 # --- MAIN TABS ---
 if st.session_state.owner_username:
@@ -444,42 +483,141 @@ if st.session_state.owner_username:
                 extra_metadata = a.get("settings", {}).get("extra_metadata") or {}
                 extra_metadata_by_uid[a["uid"]] = extra_metadata
                 donor_names = set(extra_metadata.get("project_donors") or [])
-                row = {"UID": a["uid"], "Name": a["name"], "owner_username": a["owner__username"]}
-                for d in DONOR_OPTIONS:
-                    row[d["label"]] = d["name"] in donor_names
-                rows.append(row)
+                # keep a fixed, canonical label order so it matches what the in-cell
+                # editor produces (avoids false "changed" rows from reordering only)
+                donor_str = ", ".join(d["label"] for d in DONOR_OPTIONS if d["name"] in donor_names)
+                rows.append({
+                    "UID": a["uid"],
+                    "Name": a["name"],
+                    "owner_username": a["owner__username"],
+                    "Donors": donor_str
+                })
 
             st.session_state.donor_extra_metadata_by_uid = extra_metadata_by_uid
             df_assets = pd.DataFrame(rows)
             df_assets = df_assets[(df_assets["Name"] != "") & (df_assets["owner_username"] == st.session_state.owner_username)]
-            st.session_state.df_assets_original_donor = df_assets[["UID", "Name"] + donor_labels].copy()
+            st.session_state.df_assets_original_donor = df_assets[["UID", "Name", "Donors"]].copy()
 
-        column_config = {
-            label: st.column_config.CheckboxColumn(label, default=False)
-            for label in donor_labels
-        }
+        # Custom AG Grid (Community edition, no license needed) checklist popup editor,
+        # since st.data_editor has no native multi-select column and AG Grid's own
+        # multi-select "Rich Select" editor is an Enterprise-only feature.
+        multiselect_editor = JsCode(f"""
+        class DonorMultiSelectEditor {{
+            init(params) {{
+                this.options = {donor_labels!r};
+                var current = (params.value || '').split(',').map(s => s.trim()).filter(s => s.length > 0);
+                this.selected = new Set(current);
+                this.eGui = document.createElement('div');
+                this.eGui.style.background = 'var(--ag-background-color, white)';
+                this.eGui.style.border = '1px solid #ccc';
+                this.eGui.style.borderRadius = '4px';
+                this.eGui.style.padding = '6px';
+                this.eGui.style.maxHeight = '280px';
+                this.eGui.style.overflowY = 'auto';
+                this.eGui.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                this.eGui.style.minWidth = '240px';
+                var self = this;
+                this.options.forEach(function(opt) {{
+                    var label = document.createElement('label');
+                    label.style.display = 'block';
+                    label.style.padding = '3px 4px';
+                    label.style.cursor = 'pointer';
+                    label.style.fontSize = '13px';
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.style.marginRight = '6px';
+                    checkbox.checked = self.selected.has(opt);
+                    checkbox.addEventListener('change', function(e) {{
+                        if (e.target.checked) {{ self.selected.add(opt); }} else {{ self.selected.delete(opt); }}
+                    }});
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(opt));
+                    self.eGui.appendChild(label);
+                }});
+            }}
+            getGui() {{ return this.eGui; }}
+            afterGuiAttached() {{ }}
+            getValue() {{ return this.options.filter((o) => this.selected.has(o)).join(', '); }}
+            isPopup() {{ return true; }}
+            isCancelBeforeStart() {{ return false; }}
+            isCancelAfterEnd() {{ return false; }}
+        }}
+        """)
 
-        edited_df = st.data_editor(
-            st.session_state.df_assets_original_donor,
-            column_config=column_config,
-            disabled=["UID", "Name"],
-            use_container_width=True,
-            num_rows="fixed",
-            hide_index=True,
-            key="donor_editor"
+        gb = GridOptionsBuilder.from_dataframe(st.session_state.df_assets_original_donor)
+        gb.configure_default_column(editable=False, resizable=True)
+        gb.configure_column("UID", editable=False)
+        gb.configure_column("Name", editable=False, flex=1)
+        gb.configure_column(
+            "Donors",
+            editable=True,
+            cellEditor=multiselect_editor,
+            cellEditorPopup=True,
+            flex=2,
+            tooltipField="Donors"
         )
+        grid_options = gb.build()
+        # from_dataframe() defaults to an imperative "fitGridWidth" auto-size pass
+        # (it also silently disables our colDef.flex settings). That pass runs at
+        # mount time, when a st.tabs() panel can still report 0px width, leaving
+        # columns stuck at zero width. Disable it and rely on CSS flex instead,
+        # which AG Grid recalculates live via ResizeObserver — no race.
+        grid_options["autoSizeStrategy"] = None
+        # With only 3 columns, column virtualization buys nothing but risk: if the
+        # grid's very first width measurement (inside a st.tabs() panel) comes back
+        # too small/zero, virtualization can leave a column permanently un-rendered
+        # until a manual resize. Force every column to always render.
+        grid_options["suppressColumnVirtualisation"] = True
+
+        grid_resp = AgGrid(
+            st.session_state.df_assets_original_donor,
+            gridOptions=grid_options,
+            update_mode=GridUpdateMode.VALUE_CHANGED,
+            data_return_mode=DataReturnMode.AS_INPUT,
+            allow_unsafe_jscode=True,
+            theme="streamlit",
+            # st.tabs() renders inactive panels with 0 width; AG Grid measures its
+            # container at mount time and can get stuck at width:0 when it first
+            # mounts inside a tab. Force the container to the panel's real width so
+            # AG Grid's own ResizeObserver recalculates a correct layout.
+            custom_css={
+                "#gridContainer": {"width": "100% !important"},
+                ".ag-root-wrapper": {"width": "100% !important"},
+            },
+            # Force JSON transport instead of Arrow: with enough rows, st_aggrid's
+            # 'auto' mode switches to Arrow, and this server's PyArrow encodes
+            # string columns as LargeUtf8 — a type the component's bundled
+            # Arrow-JS decoder doesn't recognize, crashing before anything mounts
+            # ("Uncaught Error: Unrecognized type: 'LargeUtf8' (20)"). JSON avoids
+            # that binary decode path entirely.
+            use_json_serialization=True,
+            key="donor_aggrid"
+        )
+        original_df = st.session_state.df_assets_original_donor
+        # grid_resp["data"] isn't consistently a DataFrame across environments:
+        # it's None before the component has sent anything back (e.g. first
+        # render, no edits yet), and with use_json_serialization=True some
+        # versions return a raw JSON records string instead of a parsed
+        # DataFrame. Normalize all of that to a DataFrame here.
+        raw_data = grid_resp["data"]
+        if raw_data is None:
+            edited_df = original_df
+        elif isinstance(raw_data, pd.DataFrame):
+            edited_df = raw_data
+        elif isinstance(raw_data, str):
+            edited_df = pd.DataFrame(json.loads(raw_data))
+        else:
+            edited_df = pd.DataFrame(raw_data)
         st.session_state.df_assets_edited_donor = edited_df
 
-        # Detect changes (any donor checkbox differs from the original for that row)
-        original_df = st.session_state.df_assets_original_donor
-        changed_mask = (edited_df[donor_labels] != original_df[donor_labels]).any(axis=1)
-        changes = edited_df[changed_mask].copy()
-
-        def _selected_labels(row):
-            return ", ".join(l for l in donor_labels if row[l]) or "(none)"
-
-        changes["Previous Donors"] = original_df.loc[changes.index].apply(_selected_labels, axis=1)
-        changes["New Donors"] = changes.apply(_selected_labels, axis=1)
+        # Detect changes
+        merged = edited_df.merge(original_df, on="UID", suffixes=("_new", "_orig"))
+        changed_mask = merged["Donors_new"] != merged["Donors_orig"]
+        changes = merged[changed_mask][["UID", "Name_new", "Donors_orig", "Donors_new"]].rename(
+            columns={"Name_new": "Name", "Donors_orig": "Previous Donors", "Donors_new": "New Donors"}
+        ).copy()
+        changes["New Donors"] = changes["New Donors"].replace("", "(none)")
+        changes["Previous Donors"] = changes["Previous Donors"].replace("", "(none)")
 
         st.session_state.changes_donor = changes
         st.session_state.assets_changes_donor = not changes.empty
@@ -488,7 +626,7 @@ if st.session_state.owner_username:
         if changes.empty:
             st.success("✅ No changes detected.")
         else:
-            st.dataframe(changes[["UID", "Name", "Previous Donors", "New Donors"]])
+            st.dataframe(changes)
             if not st.session_state.get("confirm_apply_donor"):
                 if st.button("✅ Confirm and Apply Changes", key="donor_confirm"):
                     st.session_state.confirm_apply_donor = True
@@ -500,7 +638,8 @@ if st.session_state.owner_username:
             progress_bar = st.progress(0, text="Initializing update...")
 
             for i, (_, row) in enumerate(changes.iterrows()):
-                donor_names = [donor_name_by_label[l] for l in donor_labels if row[l]]
+                new_labels = [] if row["New Donors"] == "(none)" else [l.strip() for l in row["New Donors"].split(",")]
+                donor_names = [donor_name_by_label[l] for l in new_labels if l in donor_name_by_label]
 
                 updated_extra_metadata = dict(st.session_state.donor_extra_metadata_by_uid.get(row["UID"], {}))
                 updated_extra_metadata["project_donors"] = donor_names
