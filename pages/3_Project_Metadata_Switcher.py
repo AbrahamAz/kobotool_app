@@ -32,6 +32,9 @@ DONOR_OPTIONS = [
     {"name": "giz", "label": "GIZ"},
     {"name": "kfw", "label": "KfW"},
     {"name": "dmfa", "label": "Danish Ministry of Foreign Affairs"},
+    {"name": "bha", "label": "BHA"},
+    {"name": "dutch_mfa", "label": "Dutch Ministry of Foreign Affairs"},
+    {"name": "pool_funds", "label": "Pool Funds"},
     {"name": "other", "label": "Other"},
 ]
 DONOR_LABEL_BY_NAME = {d["name"]: d["label"] for d in DONOR_OPTIONS}
